@@ -22,9 +22,7 @@ public class SnowCalibration {
         int firstDigit = -1, lastDigit = -1;
         firstDigit  = NumberFinder.findFirstNumber(line);
         lastDigit   = NumberFinder.findLastNumber(line);
-
-        System.out.println(line + " converts to " + firstDigit + lastDigit);
-
+        
         // Combine them to form a two-digit number and add to the sum
         if (firstDigit != -1 && lastDigit != -1) {
           sum += firstDigit * 10 + lastDigit;
