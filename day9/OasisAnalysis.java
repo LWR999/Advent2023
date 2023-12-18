@@ -7,73 +7,140 @@
 // ------------------------------------------------------------
 package day9;
 
-import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class OasisAnalysis {
-    public static void main(String[] args) throws FileNotFoundException {
-        // Read puzzle input from a file
-        File file = new File("./day9/environment_readings.txt");
-        Scanner scanner = new Scanner(file);
-        List<List<Integer>> histories = new ArrayList<>();
+    public static void main(String[] args) throws IOException {
+        // Record the start time for performance measurement
+        long startTime = System.currentTimeMillis();
 
-        // Parse each line into a list of integers
-        while (scanner.hasNextLine()) {
-            String[] values = scanner.nextLine().split(" ");
-            List<Integer> history = new ArrayList<>();
-            for (String value : values) {
-                history.add(Integer.parseInt(value));
+        // Setup a BufferedReader to read from a file
+        BufferedReader br = new BufferedReader(new FileReader("./day9/environment_readings.txt"));
+
+        // Initialize variables to store lines and Node objects
+        String s;
+        List<Node> firstNodes = new ArrayList<>();
+        List<Node> lastNodes = new ArrayList<>();
+
+        // Read the file line by line
+        while ((s = br.readLine()) != null) {
+            Node prev = null;
+            // Split each line into space-separated values and create Node objects
+            for (String n : s.split(" ")) {
+                Node nn = new Node(Long.parseLong(n), prev);
+                // For the first node in a line, add it to firstNodes list
+                if (prev == null) {
+                    firstNodes.add(nn);
+                }
+                prev = nn;
             }
-            histories.add(history);
+            // Add the last node of each line to lastNodes list
+            lastNodes.add(prev);
         }
-        scanner.close();
-
-        // Process each history to find the extrapolated previous value
-        long sum = 0;
-        for (List<Integer> history : histories) {
-            sum += extrapolatePreviousValue(history);
+        br.close();
+        
+        // Calculate a value (p2) based on the first nodes of each line
+        long p2 = 0;
+        for (Node n : firstNodes) {
+            n.build(null);
+            p2 += n.predictLeft();
         }
 
-        // Output the sum of the extrapolated values
-        System.out.println("Sum of extrapolated values: " + sum);
+        // Calculate another value (p1) based on the last nodes of each line
+        long p1 = 0;
+        for (Node n : lastNodes) {
+            p1 += n.predictRight();
+        }
+
+        // Record the end time and calculate the total time taken
+        long endTime = System.currentTimeMillis();
+        System.out.printf("%5.3f sec\n", (endTime - startTime) / 1000f);
+        System.out.println(p1);
+        System.out.println(p2);
     }
 
-    // Method to extrapolate the previous value of a given history
-    private static int extrapolatePreviousValue(List<Integer> history) {
-        List<List<Integer>> sequences = new ArrayList<>();
-        sequences.add(new ArrayList<>(history));
+    // Inner class representing a node in the data structure
+    private static class Node {
+        private long value;
+        private Node left;
+        private Node right;
+        private Node bottom;
 
-        // Generate sequences of differences until all are zero
-        while (!allZeroes(sequences.get(0))) {
-            List<Integer> previousSequence = sequences.get(0);
-            List<Integer> newSequence = new ArrayList<>();
-            for (int i = 1; i < previousSequence.size(); i++) {
-                newSequence.add(previousSequence.get(i) - previousSequence.get(i - 1));
-            }
-            sequences.add(0, newSequence);
-        }
-
-        // Add a zero at the beginning and calculate the new first values
-        sequences.get(0).add(0, 0);
-        for (int i = 1; i < sequences.size(); i++) {
-            int newFirstValue = sequences.get(i).get(0) + sequences.get(i - 1).get(0);
-            sequences.get(i).add(0, newFirstValue);
-        }
-
-        // Return the new first value of the original history
-        return sequences.get(sequences.size() - 1).get(1);
-    }
-
-    // Helper method to check if all elements in a list are zero
-    private static boolean allZeroes(List<Integer> list) {
-        for (int value : list) {
-            if (value != 0) {
-                return false;
+        // Constructor for Node
+        public Node(long value, Node left) {
+            this.value = value;
+            this.left = left;
+            // Link this node to the left node's right
+            if (left != null) {
+                left.right = this;
             }
         }
-        return true;
+
+        // Build method to create and connect nodes
+        public void build(Node lowerLeft) {
+            if (right != null) {
+                bottom = new Node(right.value - value, lowerLeft);
+                right.build(bottom);
+                // Check for a condition based on values of the nodes
+                if (left == null) {
+                    boolean allZeros = true;
+                    Node n = bottom;
+                    while (n != null) {
+                        if (n.value != 0) {
+                            allZeros = false;
+                            break;
+                        }
+                        n = n.right;
+                    }
+                    if (!allZeros) {
+                        bottom.build(null);
+                    }
+                }
+            }
+        }
+
+        // Predict a value moving to the right in the node chain
+        public long predictRight() {
+            if (right != null) {
+                throw new IllegalStateException();
+            }
+            if (left.bottom == null) {
+                return 0;
+            }
+            return value + left.bottom.predictRight();
+        }
+
+        // Predict a value moving to the left in the node chain
+        public long predictLeft() {
+            if (left != null) {
+                throw new IllegalStateException();
+            }
+            if (bottom == null) {
+                return 0;
+            }
+            return value - bottom.predictLeft();
+        }
+
+        // Override toString for better visualization of Node objects
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(value);
+            Node n = right;
+            while (n != null) {
+                sb.append(" ");
+                sb.append(n.value);
+                n = n.right;
+            }
+            if (bottom != null) {
+                sb.append("\n");
+                sb.append(bottom);
+            }
+            return sb.toString();
+        }
     }
 }
